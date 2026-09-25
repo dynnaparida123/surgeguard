@@ -7,11 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  CITIZEN
-  MUNICIPAL
+enum RoleName {
   ADMIN
+  MUNICIPAL
   RESCUE
+  CITIZEN
 }
 
 enum ReportStatus {
@@ -23,14 +23,7 @@ enum ReportStatus {
   RESOLVED
 }
 
-enum SeverityLevel {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum RiskLevel {
+enum HazardSeverity {
   LOW
   MEDIUM
   HIGH
@@ -45,200 +38,193 @@ enum AuthenticityStatus {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  email            String         @unique
-  username         String         @unique
-  passwordHash     String?
-  avatarUrl        String?
-  role             Role           @default(CITIZEN)
-  totalPoints      Int            @default(0)
-  trustScore       Int            @default(0)
-  verifiedReports  Int            @default(0)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String?
+  username         String?         @unique
+  role             Role            @relation(fields: [roleId], references: [id])
+  roleId           String
+  avatar           String?
+  points           Int             @default(0)
+  trustScore       Int             @default(0)
+  verifiedReports  Int             @default(0)
+  acceptedReports  Int             @default(0)
+  rejectedReports  Int             @default(0)
   reports          CitizenReport[]
-  verifications    ReportVerification[]
-  pointsTxns       PointsTransaction[]
-  auditLogs        AuditLog[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model Role {
+  id    String   @id @default(cuid())
+  name  RoleName @unique
+  users User[]
 }
 
 model CitizenReport {
-  id                    String           @id @default(cuid())
-  userId                String?
-  user                  User?            @relation(fields: [userId], references: [id])
-  imageUrl              String?
-  latitude              Float
-  longitude             Float
-  locationAccuracy      Int?
-  description           String?
-  hazardType            String
-  severity              SeverityLevel?
-  riskScore             Int?
-  authenticityStatus   AuthenticityStatus?
+  id                     String             @id @default(cuid())
+  user                   User?              @relation(fields: [userId], references: [id])
+  userId                 String?
+  imageUrl               String?
+  latitude               Float?
+  longitude              Float?
+  locationAccuracy       Float?
+  description            String?
+  hazardType             String?
+  severity               HazardSeverity?
+  riskScore              Int?
+  authenticityStatus    AuthenticityStatus?
   authenticityConfidence Float?
-  aiVerificationStatus  String?
-  aiVerificationReason  String?
-  duplicateStatus       String?
-  status                ReportStatus     @default(PENDING_AI)
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  verifiedAt            DateTime?
-  verificationSource    String?
-  verification          ReportVerification?
-  analysis              PotholeAnalysis?
+  aiVerificationStatus   String?
+  aiVerificationReason   String?
+  duplicateStatus        String?
+  status                 ReportStatus       @default(PENDING_AI)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  verifiedAt             DateTime?
+  verificationSource     String?
+  reportVerifications    ReportVerification[]
+  potholeAnalysis        PotholeAnalysis?
 }
 
 model ReportVerification {
-  id          String        @id @default(cuid())
-  reportId    String        @unique
-  report      CitizenReport @relation(fields: [reportId], references: [id])
-  reviewerId  String?
-  reviewer    User?         @relation(fields: [reviewerId], references: [id])
-  action      String
-  notes       String?
-  createdAt   DateTime      @default(now())
+  id      String        @id @default(cuid())
+  report  CitizenReport @relation(fields: [reportId], references: [id])
+  reportId String
+  verdict String
+  notes   String?
+  createdAt DateTime @default(now())
 }
 
 model PotholeAnalysis {
-  id                             String        @id @default(cuid())
-  reportId                       String        @unique
-  report                         CitizenReport @relation(fields: [reportId], references: [id])
-  isRelevantRoadHazard           Boolean?
-  hazardType                     String?
-  authenticityStatus            AuthenticityStatus?
-  authenticityConfidence        Float?
-  severityLevel                  SeverityLevel?
-  severityConfidence             Float?
-  estimatedRisk                  Int?
-  visualEvidence                 String[]
-  reasoningFactors               String[]
-  needsHumanReview               Boolean?
-  source                         String?
-  createdAt                      DateTime      @default(now())
+  id                         String        @id @default(cuid())
+  report                     CitizenReport @relation(fields: [reportId], references: [id])
+  reportId                   String        @unique
+  isRelevantRoadHazard       Boolean
+  hazardType                 String
+  authenticityStatus        AuthenticityStatus
+  authenticityConfidence     Float
+  severityLevel              HazardSeverity
+  severityConfidence         Float
+  estimatedRisk             Int
+  visualEvidence            String[]
+  reasoningFactors          String[]
+  needsHumanReview          Boolean
+  createdAt                 DateTime      @default(now())
 }
 
 model Infrastructure {
-  id                  String   @id @default(cuid())
-  name                String
-  type                String
-  latitude            Float
-  longitude           Float
-  currentRisk         Int
-  floodRisk           Int
-  accessibility       Int
-  lastVerified        DateTime?
-  nearbyHazards       Int      @default(0)
-  nearbyPotholes      Int      @default(0)
-  populationDependency Int      @default(0)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  type              String
+  latitude          Float
+  longitude         Float
+  riskScore         Int
+  floodRisk         Int
+  accessibility     Int
+  lastVerified      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model RescueTeam {
-  id              String   @id @default(cuid())
-  name            String
-  team            String
-  role            String
-  status          String
-  latitude        Float
-  longitude       Float
-  availability    String?
-  lastUpdate      DateTime?
-  assignedIncident String?
-  createdAt       DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  team        String
+  role        String
+  latitude    Float
+  longitude   Float
+  status      String
+  availability String
+  lastUpdated DateTime
+  createdAt   DateTime @default(now())
 }
 
 model RescueWorker {
-  id              String   @id @default(cuid())
-  name            String
-  teamId          String?
-  role            String
-  status          String
-  latitude        Float
-  longitude       Float
-  availability    String?
-  lastUpdate      DateTime?
-  assignedIncident String?
-  createdAt       DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  team        String
+  role        String
+  latitude    Float
+  longitude   Float
+  status      String
+  availability String
+  lastUpdated DateTime
+  createdAt   DateTime @default(now())
 }
 
 model WeatherObservation {
-  id                 String   @id @default(cuid())
-  source             String
-  temperature        Float?
-  rainfall           Float?
-  windSpeed          Float?
-  windDirection      Float?
-  pressure           Float?
-  humidity           Float?
-  cloudCoverage      Float?
-  stormStatus        String?
-  cycloneStatus      String?
-  sourceTimestamp    DateTime?
-  ingestedAt         DateTime @default(now())
-  lastUpdated        DateTime @updatedAt
+  id             String   @id @default(cuid())
+  source         String
+  location       String
+  temperature    Float?
+  rainfall       Float?
+  windSpeed      Float?
+  windDirection  Int?
+  pressure       Float?
+  humidity       Float?
+  cloudCoverage  Float?
+  stormStatus    String?
+  cycloneStatus  String?
+  sourceTimestamp DateTime
+  ingestedAt     DateTime @default(now())
+  lastUpdated    DateTime @updatedAt
 }
 
 model SatelliteObservation {
-  id                 String   @id @default(cuid())
-  source             String
-  dataset            String
-  timestamp          DateTime?
-  sourceTimestamp    DateTime?
-  ingestedAt         DateTime @default(now())
-  lastUpdated        DateTime @updatedAt
-  value              Float?
-  unit               String?
-  confidence         Float?
-  geometry           Json?
+  id             String   @id @default(cuid())
+  source         String
+  dataset        String
+  geometry       String?
+  value          Float?
+  unit           String?
+  confidence     Float?
+  sourceTimestamp DateTime
+  ingestedAt     DateTime @default(now())
+  lastUpdated    DateTime @updatedAt
 }
 
 model Cyclone {
-  id                 String   @id @default(cuid())
-  name               String
-  category           Int
-  windSpeed          Float
-  pressure           Int
-  movementSpeed      Float
-  direction          String
-  latitude           Float
-  longitude          Float
-  forecastTimestamp  DateTime?
-  path               Json?
-  riskZones          Json?
-  source             String
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  category        Int
+  windSpeed       Float
+  pressure        Int
+  positionLat     Float
+  positionLng     Float
+  movementSpeed   Float?
+  direction       String?
+  forecastTime    DateTime?
+  status          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model RiskZone {
   id          String   @id @default(cuid())
   name        String
+  lat         Float
+  lng         Float
+  riskScore   Int
   type        String
-  score       Int
-  latitude    Float
-  longitude   Float
-  radiusKm    Float?
-  source      String?
+  source      String
   createdAt   DateTime @default(now())
 }
 
 model Alert {
-  id            String   @id @default(cuid())
-  title         String
-  severity      String
-  area          String
-  riskScore     Int
-  reason        String
-  recommendedAction String
-  source        String?
-  createdAt     DateTime @default(now())
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  severity       String
+  recommendedAction String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
 }
 
 model PointsTransaction {
   id          String   @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  type        String
   points      Int
   reason      String
   createdAt   DateTime @default(now())
@@ -247,22 +233,18 @@ model PointsTransaction {
 model LeaderboardSnapshot {
   id          String   @id @default(cuid())
   userId      String
-  username    String
+  rank        Int
   points      Int
   verifiedReports Int
   accuracy    Float
-  resolvedReports Int
-  window      String
   createdAt   DateTime @default(now())
 }
 
 model AuditLog {
   id          String   @id @default(cuid())
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id])
+  actor       String
   action      String
-  entityType  String
-  entityId    String?
+  target      String?
   details     String?
   createdAt   DateTime @default(now())
 }
